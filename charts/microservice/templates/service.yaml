@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "microservice.fullname" . }}
+  labels:
+    {{- include "microservice.labels" . | nindent 4 }}
+    app.kubernetes.io/component: service
+  annotations:
+    description: "Servicio interno para el microservicio de la plataforma fintech"
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "microservice.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "microservice.fullname" . }}-external
+  labels:
+    {{- include "microservice.labels" . | nindent 4 }}
+    app.kubernetes.io/component: service
+    app.kubernetes.io/traffic: external
+  annotations:
+    description: "Servicio externo para exponer el microservicio a usuarios finales"
+    {{- if .Values.service.externalAnnotations }}
+    {{- toYaml .Values.service.externalAnnotations | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ .Values.service.externalType | default "LoadBalancer" }}
+  ports:
+    - port: {{ .Values.service.externalPort | default 80 }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "microservice.selectorLabels" . | nindent 4 }}

@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  resource.customizations: |
+    argoproj.io/Application:
+      health.lua: |
+        hs = {
+          status = "Progressing",
+          message = "Application is being processed",
+          health = {
+            status = "Healthy"
+          }
+        }
+        if obj.status ~= nil then
+          if obj.status.health ~= nil then
+            hs.status = "Running"
+            hs.message = "Application is running"
+            hs.health.status = obj.status.health.status
+            hs.health.message = obj.status.health.message
+          end
+        end
+        return hs
+  resource.compareoptions: |
+    ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/replicas
+  application.instanceLabelKey: argocd.argoproj.io/instance
+  reposerver.parallelism.limit: "10"
+  controller.default.timeout: "180s"
+  server.rootpath: ""
+  server.basehref: ""
+  server.staticassets: /shared/app
+  server.enable.gzip: "true"
+  server.repo.server: "argocd-repo-server:8086"
+  server.dex.server: "argocd-dex-server:5556"
+  server.metrics.enabled: "true"
+  server.metrics.cache.enabled: "true"
+  repository.credentials: |
+    - url: https://github.com/
+      passwordSecret:
+        key: password
+        name: argocd-github-creds
+      usernameSecret:
+        key: username
+        name: argocd-github-creds
+  k8sclient.content.types: application/yaml
+  k8sclient.ratelimit.default: 10
+  k8sclient.ratelimit.max: 100
+  configManagementPlugin: |
+    - name: my-custom-plugin
+      init:
+        command: [sh, -c]
+        args: [echo "Initializing..."]
+      generate:
+        command: [sh, -c]
+        args: [echo "Generating manifests..."]
